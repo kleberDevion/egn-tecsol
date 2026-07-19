@@ -1,0 +1,21 @@
+# Dados de origem (não versionados: contêm PII de clientes e credenciais)
+/2026/
+/DAVI/
+/2026.zip
+/DAVI.zip
+/06-HOMOLOGADOS/
+/06-HOMOLOGADOS.zip
+
+# Banco gerado localmente pelo seed (contém dados reais de clientes)
+api/tecsol.db
+api/instance/
+
+# Python
+__pycache__/
+*.pyc
+
+# Node / frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
