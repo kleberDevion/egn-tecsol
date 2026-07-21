@@ -193,6 +193,13 @@ export interface NivelConfig {
 
 export type NivelConfigInput = Partial<Pick<NivelConfig, "label" | "valor_fixo" | "percentual">>;
 
+// Comissão vigente: R$/kWh de geração esperada, por nível da cadeia de
+// recrutamento (1 = quem indicou; 2 = quem recrutou o 1; 3 = quem recrutou o 2).
+export interface ComissaoNivel {
+  nivel: 1 | 2 | 3;
+  valor_por_kwh: number;
+}
+
 export interface Indicador {
   id: number;
   nome: string;

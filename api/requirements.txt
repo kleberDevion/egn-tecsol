@@ -3,3 +3,5 @@ flask-socketio>=5.4
 pandas>=2.2
 openpyxl>=3.1
 requests>=2.32
+dramatiq[rabbitmq]>=1.17
+periodiq>=0.13

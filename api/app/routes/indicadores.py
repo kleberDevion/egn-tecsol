@@ -28,6 +28,7 @@ def _public_indicador(row, db=None):
         "email": row["email"],
         "telefone": row["telefone"],
         "codigo_indicacao": row["codigo_indicacao"],
+        "recrutado_por_id": row["recrutado_por_id"],
         "nivel": row["nivel"],
         "total_vendas": row["total_vendas"],
         "total_ganhos": row["total_ganhos"],
@@ -95,13 +96,26 @@ def signup():
     if not senha or len(senha) < 8:
         raise ApiError("VALIDATION_ERROR", "Senha deve ter ao menos 8 caracteres", 400)
 
+    # Convite: o mesmo codigo_indicacao que já serve pro link de cliente
+    # (/i/{codigo}) também recruta novos indicadores, via /auth?convite={codigo}.
+    # Código inválido/inexistente não bloqueia o cadastro — só não vincula a
+    # ninguém, pra um link expirado/errado não impedir a pessoa de criar conta.
+    recrutado_por_id = None
+    codigo_convite = body.get("codigo_convite")
+    if codigo_convite:
+        recrutador = get_db().execute(
+            "SELECT id FROM indicadores WHERE codigo_indicacao = ? AND ativo = 1", (codigo_convite,)
+        ).fetchone()
+        if recrutador is not None:
+            recrutado_por_id = recrutador["id"]
+
     db = get_db()
     codigo = _gerar_codigo(db, nome)
     try:
         cur = db.execute(
-            """INSERT INTO indicadores (nome, email, telefone, senha_hash, codigo_indicacao, ultimo_login_em)
-               VALUES (?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%SZ','now'))""",
-            (nome, email, telefone, hash_password(senha), codigo),
+            """INSERT INTO indicadores (nome, email, telefone, senha_hash, codigo_indicacao, recrutado_por_id, ultimo_login_em)
+               VALUES (?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%SZ','now'))""",
+            (nome, email, telefone, hash_password(senha), codigo, recrutado_por_id),
         )
     except sqlite3.IntegrityError:
         raise ApiError("CONFLICT", f"Já existe uma conta com o e-mail '{email}'", 409)
@@ -167,6 +181,21 @@ def update_me():
     db = get_db()
     row = db.execute("SELECT * FROM indicadores WHERE id = ?", (g.indicador["id"],)).fetchone()
     return jsonify(_public_indicador(row, db))
+
+
+@bp.post("/sync")
+def sync_minhas_indicacoes():
+    """Botão "Atualizar" do app: sincroniza na hora (inline) só as indicações
+    do indicador logado, pra ele não precisar esperar o ciclo do Celery beat."""
+    require_indicador_login()
+    from app.sync_indicacoes import sincronizar
+
+    try:
+        atualizadas = sincronizar(get_db(), indicador_id=g.indicador["id"])
+    except Exception:
+        logger.exception("Sync sob demanda falhou (indicador %s)", g.indicador["id"])
+        raise ApiError("UPSTREAM_ERROR", "Não foi possível consultar o CRM agora. Tente de novo em instantes.", 502)
+    return jsonify({"atualizadas": atualizadas})
 
 
 @bp.get("/minhas-indicacoes")

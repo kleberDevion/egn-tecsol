@@ -7,7 +7,6 @@ import {
   IconHelpCircle,
   IconHome,
   IconLink,
-  IconMessageCircle,
   IconShield,
   IconUsers,
   IconZap,
@@ -23,7 +22,6 @@ const navItems = [
   { to: "/concessionarias", label: "Concessionárias", icon: IconBuilding },
 ];
 
-const atendimentoItem = { to: "/atendimento", label: "Atendimento", icon: IconMessageCircle, end: false };
 const suporteItem = { to: "/suporte", label: "Suporte", icon: IconHelpCircle, end: false };
 const indicacoesItem = { to: "/indicacoes", label: "Indicações", icon: IconChart, end: false };
 
@@ -45,7 +43,6 @@ export function Sidebar() {
         ...navItems,
         { to: "/admin", label: "Administração", icon: IconShield },
         indicacoesItem,
-        atendimentoItem,
         suporteItem,
       ];
     }
@@ -54,7 +51,7 @@ export function Sidebar() {
       .filter((g) => g === "vendas" || g in WORKSPACE_ITEMS)
       .map((g) => (g === "vendas" ? indicacoesItem : WORKSPACE_ITEMS[g]!));
 
-    return [...navItems, ...grupoItems, atendimentoItem, suporteItem];
+    return [...navItems, ...grupoItems, suporteItem];
   })();
 
   return (

@@ -139,6 +139,9 @@ INSERT OR IGNORE INTO niveis_config (nivel, label, valor_fixo, percentual, ordem
     ('embaixador', 'Embaixador', 500, 0.05, 4),
     ('elite',      'Elite',      700, 0.07, 5);
 
+-- `recrutado_por_id` é a cadeia de quem recrutou quem pro programa de
+-- parceiros (não confundir com quem indicou um cliente): sobe essa cadeia
+-- pra pagar a comissão multi-nível por kWh (nível 1/2/3, ver app/solarz.py).
 CREATE TABLE IF NOT EXISTS indicadores (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nome TEXT NOT NULL,
@@ -146,6 +149,7 @@ CREATE TABLE IF NOT EXISTS indicadores (
     telefone TEXT,
     senha_hash TEXT NOT NULL,
     codigo_indicacao TEXT NOT NULL UNIQUE,
+    recrutado_por_id INTEGER REFERENCES indicadores(id),
     nivel TEXT NOT NULL DEFAULT 'indicador' REFERENCES niveis_config(nivel),
     total_vendas INTEGER NOT NULL DEFAULT 0,
     total_ganhos REAL NOT NULL DEFAULT 0,
@@ -186,6 +190,32 @@ CREATE TABLE IF NOT EXISTS indicador_cliques (
     indicador_id INTEGER NOT NULL REFERENCES indicadores(id),
     criado_em TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
 );
+
+-- Comissão multi-nível por kWh de geração esperada (regra do dono do app):
+-- nível 1 = quem indicou o cliente; nível 2 = quem recrutou o nível 1;
+-- nível 3 = quem recrutou o nível 2 (cadeia indicadores.recrutado_por_id).
+-- Valores em R$/kWh, editáveis pelo admin.
+CREATE TABLE IF NOT EXISTS comissao_niveis (
+    nivel INTEGER PRIMARY KEY CHECK(nivel IN (1,2,3)),
+    valor_por_kwh REAL NOT NULL
+);
+INSERT OR IGNORE INTO comissao_niveis (nivel, valor_por_kwh) VALUES
+    (1, 0.40), (2, 0.15), (3, 0.075);
+
+-- Extrato de comissões pagas por indicação fechada: uma linha por beneficiário
+-- (até 3 por venda, um por nível da cadeia de recrutamento).
+CREATE TABLE IF NOT EXISTS comissoes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    indicacao_id INTEGER NOT NULL REFERENCES indicacoes(id),
+    indicador_id INTEGER NOT NULL REFERENCES indicadores(id),
+    nivel INTEGER NOT NULL CHECK(nivel IN (1,2,3)),
+    kwh REAL NOT NULL,
+    valor_por_kwh REAL NOT NULL,
+    valor REAL NOT NULL,
+    criado_em TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+);
+CREATE INDEX IF NOT EXISTS idx_comissoes_indicacao ON comissoes(indicacao_id);
+CREATE INDEX IF NOT EXISTS idx_comissoes_indicador ON comissoes(indicador_id);
 
 -- Chat de uma indicação: entre quem clicou no link do indicador ("cliente", sem login,
 -- identificado só pelo chat_token acima) e o operador do CRM que está atendendo.

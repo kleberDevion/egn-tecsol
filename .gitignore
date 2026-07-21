@@ -10,6 +10,10 @@
 api/tecsol.db
 api/instance/
 
+# Segredos locais (token da API Solarz etc.)
+.env
+api/.env
+
 # Python
 __pycache__/
 *.pyc

@@ -1,0 +1,201 @@
+{
+  "descricao": "Campos necessários pra geração de documentos (memorial, contrato, procuração, RT, DWG) que NÃO existem hoje em nenhum endpoint da Open API da Solarz — verificado nos 3 specs (v2-open-api, external, open) e em deals/propostas reais completos. Se forem criados como campos custom no negócio (ou expostos na proposta) com estes nomes, o egn-tecsol passa a ler tudo automaticamente.",
+  "campos": [
+    {
+      "nome": "Geração esperada",
+      "chave_sugerida": "geracao_esperada_kwh_mes",
+      "tipo": "number",
+      "unidade": "kWh/mês",
+      "exemplo": 573,
+      "usado_em": ["memorial", "dwg", "comissao_indicadores"],
+      "obs": "Existe na tela de proposta da Solarz (logo após o kWp), mas a Open API não expõe. É também a base do cálculo de comissão dos indicadores."
+    },
+    {
+      "nome": "Fabricante do módulo",
+      "chave_sugerida": "modulo_fabricante",
+      "tipo": "string",
+      "exemplo": "TCL",
+      "usado_em": ["memorial", "rt", "dwg"]
+    },
+    {
+      "nome": "Modelo do módulo",
+      "chave_sugerida": "modulo_modelo",
+      "tipo": "string",
+      "exemplo": "HSM-ND66-GR615",
+      "usado_em": ["memorial", "rt", "dwg"]
+    },
+    {
+      "nome": "Potência do módulo",
+      "chave_sugerida": "modulo_potencia_w",
+      "tipo": "number",
+      "unidade": "W",
+      "exemplo": 615,
+      "usado_em": ["memorial", "rt", "dwg"]
+    },
+    {
+      "nome": "Quantidade de módulos",
+      "chave_sugerida": "modulo_quantidade",
+      "tipo": "number",
+      "exemplo": 10,
+      "usado_em": ["memorial", "rt", "dwg"]
+    },
+    {
+      "nome": "Área ocupada",
+      "chave_sugerida": "area_m2",
+      "tipo": "number",
+      "unidade": "m²",
+      "exemplo": 23.2,
+      "usado_em": ["memorial", "dwg"]
+    },
+    {
+      "nome": "Tipo do inversor",
+      "chave_sugerida": "inversor_tipo",
+      "tipo": "string",
+      "valores": ["MICRO", "STRING", "HIBRIDO"],
+      "exemplo": "MICRO",
+      "usado_em": ["memorial", "rt", "dwg"]
+    },
+    {
+      "nome": "Fabricante do inversor",
+      "chave_sugerida": "inversor_fabricante",
+      "tipo": "string",
+      "exemplo": "FOXESS",
+      "usado_em": ["memorial", "rt", "dwg"]
+    },
+    {
+      "nome": "Modelo do inversor",
+      "chave_sugerida": "inversor_modelo",
+      "tipo": "string",
+      "exemplo": "Q1-2400-E",
+      "usado_em": ["memorial", "rt", "dwg"]
+    },
+    {
+      "nome": "Quantidade de inversores",
+      "chave_sugerida": "inversor_quantidade",
+      "tipo": "number",
+      "exemplo": 2,
+      "usado_em": ["memorial", "rt", "dwg"]
+    },
+    {
+      "nome": "Potência do inversor",
+      "chave_sugerida": "inversor_potencia_kw",
+      "tipo": "number",
+      "unidade": "kW",
+      "exemplo": 2.4,
+      "usado_em": ["memorial", "rt", "dwg"]
+    },
+    {
+      "nome": "Número de MPPTs",
+      "chave_sugerida": "inversor_n_mppt",
+      "tipo": "number",
+      "exemplo": 4,
+      "usado_em": ["memorial", "rt"]
+    },
+    {
+      "nome": "Distribuição de painéis por MPPT",
+      "chave_sugerida": "mppt_distribuicao",
+      "tipo": "string",
+      "exemplo": "5+5",
+      "usado_em": ["rt", "dwg"],
+      "obs": "Na planilha: #quantidadepainelmppt1/2/3 e #potMPPT1/2/3."
+    },
+    {
+      "nome": "Número da instalação (UC)",
+      "chave_sugerida": "numero_instalacao",
+      "tipo": "string",
+      "exemplo": "0.000.912.176.054-91",
+      "usado_em": ["memorial", "procuracao", "rt"],
+      "obs": "Unidade consumidora na concessionária (EDP)."
+    },
+    {
+      "nome": "Grupo",
+      "chave_sugerida": "ligacao_grupo",
+      "tipo": "string",
+      "exemplo": "Grupo_B",
+      "usado_em": ["memorial", "rt"]
+    },
+    {
+      "nome": "Classe",
+      "chave_sugerida": "ligacao_classe",
+      "tipo": "string",
+      "exemplo": "B1 - RESIDENCIAL",
+      "usado_em": ["memorial"]
+    },
+    {
+      "nome": "Tipo de conexão",
+      "chave_sugerida": "ligacao_tipo_conexao",
+      "tipo": "string",
+      "valores": ["Monofásico", "Bifásico", "Trifásico"],
+      "exemplo": "Monofásico",
+      "usado_em": ["memorial", "rt", "dwg"]
+    },
+    {
+      "nome": "Categoria",
+      "chave_sugerida": "ligacao_categoria",
+      "tipo": "string",
+      "exemplo": "Monopolar_63A",
+      "usado_em": ["memorial"]
+    },
+    {
+      "nome": "Disjuntor de entrada",
+      "chave_sugerida": "ligacao_disjuntor",
+      "tipo": "string",
+      "exemplo": "63A",
+      "usado_em": ["memorial", "rt", "dwg"]
+    },
+    {
+      "nome": "Tensão",
+      "chave_sugerida": "ligacao_tensao",
+      "tipo": "string",
+      "exemplo": "127V",
+      "usado_em": ["memorial", "rt", "dwg"]
+    },
+    {
+      "nome": "Potência disponibilizada",
+      "chave_sugerida": "ligacao_potencia_disponivel_kw",
+      "tipo": "number",
+      "unidade": "kW",
+      "exemplo": 9,
+      "usado_em": ["memorial"]
+    },
+    {
+      "nome": "Disjuntor do inversor",
+      "chave_sugerida": "disjuntor_inversor",
+      "tipo": "string",
+      "exemplo": "25A",
+      "usado_em": ["rt", "dwg"]
+    },
+    {
+      "nome": "Cabos antes do medidor (quantidade e seção)",
+      "chave_sugerida": "cabos_antes",
+      "tipo": "string",
+      "exemplo": "2x 10mm²",
+      "usado_em": ["rt", "dwg"],
+      "obs": "Na planilha: #qtdcabosantes / #secaocabosantes."
+    },
+    {
+      "nome": "Cabos depois do medidor (quantidade e seção)",
+      "chave_sugerida": "cabos_depois",
+      "tipo": "string",
+      "exemplo": "2x 10mm²",
+      "usado_em": ["rt", "dwg"],
+      "obs": "Na planilha: #qtdcabosdepois / #secaocabosdepois."
+    },
+    {
+      "nome": "Estrutura de fixação",
+      "chave_sugerida": "estrutura",
+      "tipo": "string",
+      "exemplo": "FIBROMADEIRA",
+      "usado_em": ["memorial", "contrato"],
+      "obs": "Opções da planilha: FIBROMADEIRA, METALICA, CERAMICO, LAJE, SOLO..."
+    },
+    {
+      "nome": "Fornecedor do kit",
+      "chave_sugerida": "fornecedor",
+      "tipo": "string",
+      "exemplo": "FORTLEV ENERGIA SOLAR LTDA",
+      "usado_em": ["contrato"],
+      "obs": "Hoje só aparece em texto livre na 'Observação de Pagamento:' do deal."
+    }
+  ]
+}

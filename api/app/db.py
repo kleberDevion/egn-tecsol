@@ -23,6 +23,10 @@ def _ensure_columns(conn):
     if "foto_path" not in cols:
         conn.execute("ALTER TABLE usuarios ADD COLUMN foto_path TEXT")
 
+    indicadores_cols = {row[1] for row in conn.execute("PRAGMA table_info(indicadores)")}
+    if "recrutado_por_id" not in indicadores_cols:
+        conn.execute("ALTER TABLE indicadores ADD COLUMN recrutado_por_id INTEGER REFERENCES indicadores(id)")
+
     indicacoes_cols = {row[1] for row in conn.execute("PRAGMA table_info(indicacoes)")}
     if "chat_token" not in indicacoes_cols:
         conn.execute("ALTER TABLE indicacoes ADD COLUMN chat_token TEXT")

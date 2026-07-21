@@ -1,0 +1,85 @@
+CAMPOS ENCONTRADOS NOS DOCUMENTOS REAIS (base: PJ-2021.015-705 - WANDUEL, em
+06-HOMOLOGADOS/2021) — pra confirmar com o dono do app quais valem a pena
+automatizar e se faltou algum campo.
+
+===============================================================================
+1_ORÇAMENTO (pasta com subpastas "Ecori" e "TECSOL" — dois fornecedores)
+===============================================================================
+Não é um .docx gerado por nós, é PDF de orçamento de fornecedor (ex: Ecori,
+TECSOL/APSystems). Nome do arquivo já carrega os dados principais:
+  "OR - 2021.4.26-705-28-5_WANDOEL MAURICIO LISBOA - 6,42kWp 12x535 - 3xQS1A1500_APSystems.pdf"
+Campos no nome do arquivo:
+  - código do orçamento (2021.4.26-705-28-5)
+  - nome do cliente
+  - potência do sistema (6,42kWp)
+  - quantidade x modelo do painel (12x535)
+  - quantidade x modelo do inversor/microinversor (3xQS1A1500)
+  - marca (APSystems)
+PERGUNTA PRO DONO: Orçamento é documento gerado por nós ou sempre um PDF externo
+de fornecedor (não geraríamos ele, só arquivamos)?
+
+===============================================================================
+3_MEMORIAL DESCRITIVO (docx gerado por nós — candidato forte a automação)
+===============================================================================
+Campos encontrados no corpo do documento:
+  - N°:                    MD-2021.015-705-001
+  - TÍTULO:                (nome do sistema, ex: "ADVANCE sistema DE microGERAÇÃO...")
+  - CLIENTE:                WANDOEL MAURICIO LISBOA
+  - LOCAL:                  SÃO MATEUS - ES
+  - N° Projeto:             PJ-2021.015-705
+  - N° Contrato:            CT-2021.015-705-1
+  - N° TRT CFT:             BR20211143571        <- possível "N° de pedido"?
+  - Tipo do Documento:      PARA APROVAÇÃO / APROVADO / PARA EXECUÇÃO / etc.
+  - Responsável:            WILLIAM COUTO PEREIRA
+  - N°. CFT:                10694446777226695-3048000   <- registro do responsável técnico
+  - Potência nominal:       6,42 kWp
+  - N° instalação EDP:      1502981
+  - N° do medidor:          ECM55830
+  - Classe:                 B1 - Residencial
+  - Índice de revisões:     tabela (Rev / Descrição / Pág / Responsável / Data)
+
+===============================================================================
+4_CONTRATO (docx gerado por nós — candidato forte a automação)
+===============================================================================
+  - N° Contrato:            CT-2021.015-705-0
+  - Potência:               6,42 kWp
+  - CONTRATANTE nome:       Wandoel Mauricio Lisboa
+  - CONTRATANTE CPF:        910.279.857-34
+  - CONTRATANTE endereço:   AV. ESBERTALINA BARBOSA DAMIONI, 137 - GURIRI NORTE - SÃO MATEUS, ES - CEP 29946-490
+  - CONTRATADA (fixo):      TECSOL Engenharia e Soluções Energéticas Ltda, CNPJ 24.503.711/0001-47
+  - Sócios diretores (fixo): William Couto Pereira (CPF 106.944.467-77), Fabiano Couto Pereira (CPF 080.027.027-43)
+  - Menção a CFT:           "Responsabilidade Técnica (TRT) junto ao CFT da localidade"
+  - Menção a medidor:       "substituição do medidor de energia atual pelo medidor bidirecional"
+
+===============================================================================
+5_PROCURAÇÃO (docx curto, gerado por nós — candidato forte a automação)
+===============================================================================
+  - OUTORGANTE nome:        WANDOEL MAURICIO LISBOA
+  - OUTORGANTE CPF:         910.279.857-34
+  - OUTORGANTE endereço:    AV ESBERTALINA BARBOSA DAMIONI, 137 - CEP 29946-490 GURIRI NORTE - SAO MATEUS - ES
+  - OUTORGADO (fixo):       WILLIAM COUTO PEREIRA, CFT 10694446777, TECSOL Engenharia...
+  - Referência ao memorial: "MD-2021.015-705-001"
+  - Concessionária:         EDP Espírito Santo
+  - Validade:               365 dias
+  - Data/local assinatura:  Linhares - ES, 29 de abril 2021
+  - Assinatura:              nome + CPF do outorgante (WANDOEL só assina o docx impresso — não é campo de texto)
+
+===============================================================================
+DESENHOS/DIAGRAMAS (.dwg) — pasta "Documentos Projeto/Projeto"
+===============================================================================
+Achei o arquivo real: "DE-2021 015-705-XXX-0 - Desenhos e Diagramas do
+Projeto_WANDOEL.dwg" (formato AC1032 = AutoCAD 2018+, binário comprimido).
+NÃO consegui abrir/inspecionar os blocos e atributos de dentro dele com as
+ferramentas que tenho aqui (precisaria do ODA File Converter ou de rodar
+dentro do próprio AutoCAD) — por isso dependo do VBA pra saber os nomes exatos
+das variáveis/atributos que ele preenche.
+
+===============================================================================
+PERGUNTAS PRO DONO (além das marcadas acima):
+===============================================================================
+1. "N° TRT CFT" (BR20211143571) É o "número de pedido" que você mencionou, ou
+   é outro campo? Onde fica o número de pedido, se for diferente?
+2. Confirma que só Memorial Descritivo, Contrato e Procuração são gerados por
+   nós (Orçamento e os PDFs de fornecedor ficam de fora da automação)?
+3. Os dados fixos da TECSOL/sócios/CFT do responsável técnico mudam por
+   projeto ou são sempre os mesmos (William Couto Pereira, CFT 10694446777)?

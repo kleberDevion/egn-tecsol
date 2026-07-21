@@ -3,6 +3,23 @@ from pathlib import Path
 
 from flask import Flask, request
 
+
+def _load_dotenv():
+    """Carrega api/.env pro os.environ (sem sobrescrever o que já existe).
+    Feito na mão pra não depender do python-dotenv — o arquivo só tem
+    CHAVE=valor por linha (ex: SOLARZ_API_TOKEN). Necessário porque, dependendo
+    de como o servidor é iniciado (reloader do Flask, launcher do PyManager,
+    Agendador de Tarefas), variáveis do shell nem sempre chegam ao processo."""
+    env_path = Path(__file__).resolve().parent.parent / ".env"
+    if not env_path.exists():
+        return
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        os.environ.setdefault(key.strip(), value.strip())
+
 from app.db import close_db, init_db
 from app.errors import register_error_handlers
 from app.routes import (
@@ -38,6 +55,7 @@ def _apply_cors(response):
 
 
 def create_app(test_config=None):
+    _load_dotenv()
     app = Flask(__name__)
     app.config.from_mapping(
         DATABASE=str(Path(app.root_path).parent / "tecsol.db"),

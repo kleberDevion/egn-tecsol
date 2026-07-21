@@ -23,11 +23,11 @@ import { IconPlus, IconSearch } from "@/components/icons";
 import { gruposApi } from "@/api/grupos";
 import type {
   ActivityLogEntry,
+  ComissaoNivel,
   CreateUsuarioInput,
   Grupo,
   GrupoChave,
   Indicador,
-  NivelConfig,
   Papel,
   PresencaEntry,
   UsuarioAdmin,
@@ -304,41 +304,36 @@ function AtividadePanel() {
   );
 }
 
+const DESCRICAO_NIVEL_COMISSAO: Record<number, { titulo: string; quem: string }> = {
+  1: { titulo: "Nível 1", quem: "Quem indicou o cliente" },
+  2: { titulo: "Nível 2", quem: "Quem recrutou o nível 1" },
+  3: { titulo: "Nível 3", quem: "Quem recrutou o nível 2" },
+};
+
 function NiveisPanel() {
   const { showSuccess, showError } = useToast();
-  const [niveis, setNiveis] = useState<NivelConfig[] | null>(null);
-  const [savingNivel, setSavingNivel] = useState<string | null>(null);
-  const [geralValorFixo, setGeralValorFixo] = useState("");
-  const [geralPercentual, setGeralPercentual] = useState("");
-  const [aplicandoGeral, setAplicandoGeral] = useState(false);
+  const [comissoes, setComissoes] = useState<ComissaoNivel[] | null>(null);
+  const [savingNivel, setSavingNivel] = useState<number | null>(null);
 
   const load = useCallback(() => {
-    niveisApi.list().then((res) => setNiveis(res.data));
+    niveisApi.listComissao().then((res) => setComissoes(res.data));
   }, []);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const handleChange = (nivel: string, field: "label" | "valor_fixo" | "percentual", value: string) => {
-    setNiveis((prev) =>
-      prev?.map((n) =>
-        n.nivel === nivel
-          ? { ...n, [field]: field === "label" ? value : Number(value) }
-          : n,
-      ) ?? prev,
+  const handleChange = (nivel: number, value: string) => {
+    setComissoes((prev) =>
+      prev?.map((c) => (c.nivel === nivel ? { ...c, valor_por_kwh: Number(value) } : c)) ?? prev,
     );
   };
 
-  const handleSalvar = async (nivel: NivelConfig) => {
-    setSavingNivel(nivel.nivel);
+  const handleSalvar = async (c: ComissaoNivel) => {
+    setSavingNivel(c.nivel);
     try {
-      await niveisApi.update(nivel.nivel, {
-        label: nivel.label,
-        valor_fixo: nivel.valor_fixo,
-        percentual: nivel.percentual,
-      });
-      showSuccess(`Nível "${nivel.label}" atualizado.`);
+      await niveisApi.updateComissao(c.nivel, c.valor_por_kwh);
+      showSuccess(`Comissão do nível ${c.nivel} atualizada.`);
     } catch (err) {
       showError(getErrorMessage(err));
       load();
@@ -347,92 +342,34 @@ function NiveisPanel() {
     }
   };
 
-  const handleAplicarGeral = async () => {
-    if (!niveis || !geralValorFixo || !geralPercentual) {
-      showError("Informe valor fixo e percentual pra aplicar em todos os níveis.");
-      return;
-    }
-    const valor_fixo = Number(geralValorFixo);
-    const percentual = Number(geralPercentual);
-    setAplicandoGeral(true);
-    try {
-      await Promise.all(niveis.map((n) => niveisApi.update(n.nivel, { valor_fixo, percentual })));
-      showSuccess("Valor fixo e percentual aplicados a todos os níveis.");
-      load();
-    } catch (err) {
-      showError(getErrorMessage(err));
-    } finally {
-      setAplicandoGeral(false);
-    }
-  };
-
-  if (!niveis) return <FullPageSpinner />;
+  if (!comissoes) return <FullPageSpinner />;
 
   return (
     <div className="bg-white p-5">
-      <h3 className="mb-1 text-sm font-medium text-ink">Níveis de comissão</h3>
+      <h3 className="mb-1 text-sm font-medium text-ink">Comissão por indicação (R$/kWh)</h3>
       <p className="mb-4 text-xs text-ink-secondary">
-        Valor fixo e percentual aplicados sobre o valor do sistema quando uma indicação fecha
+        Valor pago por kWh de geração esperada do sistema (da proposta na Solarz) quando a venda fecha.
+        Multi-nível pela cadeia de recrutamento: quem indicou, quem recrutou o indicador, e quem recrutou este.
       </p>
 
-      <div className="mb-4 flex flex-wrap items-end gap-3 bg-canvas p-3">
-        <div className="w-32">
-          <Input
-            label="Valor fixo (R$)"
-            type="number"
-            min={0}
-            step="0.01"
-            placeholder="ex: 300"
-            value={geralValorFixo}
-            onChange={(e) => setGeralValorFixo(e.target.value)}
-          />
-        </div>
-        <div className="w-32">
-          <Input
-            label="Percentual"
-            type="number"
-            min={0}
-            max={1}
-            step="0.01"
-            placeholder="ex: 0.03"
-            value={geralPercentual}
-            onChange={(e) => setGeralPercentual(e.target.value)}
-          />
-        </div>
-        <Button variant="secondary" onClick={handleAplicarGeral} disabled={aplicandoGeral}>
-          Aplicar a todos os níveis
-        </Button>
-        <p className="w-full text-xs text-ink-faint">Sobrescreve o valor fixo e o percentual de todas as categorias abaixo — o nome de cada nível não muda.</p>
-      </div>
-
       <div className="flex flex-col gap-2">
-        {niveis.map((n) => (
-          <div key={n.nivel} className="flex flex-wrap items-end gap-3 border-b border-border pb-3 last:border-0 last:pb-0">
-            <div className="w-40">
-              <Input label="Nome" value={n.label} onChange={(e) => handleChange(n.nivel, "label", e.target.value)} />
+        {comissoes.map((c) => (
+          <div key={c.nivel} className="flex flex-wrap items-end gap-3 border-b border-border pb-3 last:border-0 last:pb-0">
+            <div className="w-56">
+              <div className="text-sm font-medium text-ink">{DESCRICAO_NIVEL_COMISSAO[c.nivel]?.titulo ?? `Nível ${c.nivel}`}</div>
+              <div className="text-xs text-ink-faint">{DESCRICAO_NIVEL_COMISSAO[c.nivel]?.quem}</div>
             </div>
-            <div className="w-32">
+            <div className="w-36">
               <Input
-                label="Valor fixo (R$)"
+                label="R$ por kWh"
                 type="number"
                 min={0}
-                step="0.01"
-                value={n.valor_fixo}
-                onChange={(e) => handleChange(n.nivel, "valor_fixo", e.target.value)}
+                step="0.005"
+                value={c.valor_por_kwh}
+                onChange={(e) => handleChange(c.nivel, e.target.value)}
               />
             </div>
-            <div className="w-32">
-              <Input
-                label="Percentual"
-                type="number"
-                min={0}
-                max={1}
-                step="0.01"
-                value={n.percentual}
-                onChange={(e) => handleChange(n.nivel, "percentual", e.target.value)}
-              />
-            </div>
-            <Button variant="secondary" onClick={() => handleSalvar(n)} disabled={savingNivel === n.nivel}>
+            <Button variant="secondary" onClick={() => handleSalvar(c)} disabled={savingNivel === c.nivel}>
               Salvar
             </Button>
           </div>

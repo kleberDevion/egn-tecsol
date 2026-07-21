@@ -7,6 +7,7 @@ SOLARZ_API_TOKEN — nunca hardcoded, nunca exposta ao frontend.
 """
 
 import os
+import time
 
 import requests
 
@@ -51,25 +52,36 @@ def _token():
     return token
 
 
-def _request(method, path, **kwargs):
-    try:
-        res = requests.request(
-            method,
-            f"{SOLARZ_API_BASE}{path}",
-            headers={"Authorization": _token(), "Content-Type": "application/json"},
-            timeout=10,
-            **kwargs,
-        )
-    except requests.RequestException as e:
-        raise SolarzApiError(f"Falha de rede ao chamar a Solarz: {e}") from e
+def _request(method, path, _tentativas=4, **kwargs):
+    for tentativa in range(_tentativas):
+        try:
+            res = requests.request(
+                method,
+                f"{SOLARZ_API_BASE}{path}",
+                headers={"Authorization": _token(), "Content-Type": "application/json"},
+                timeout=10,
+                **kwargs,
+            )
+        except requests.RequestException as e:
+            raise SolarzApiError(f"Falha de rede ao chamar a Solarz: {e}") from e
 
-    if not res.ok:
-        raise SolarzApiError(f"Solarz respondeu {res.status_code}: {res.text[:500]}", res.status_code)
-    return res.json() if res.content else None
+        # Rate limit: respeita Retry-After se vier, senão backoff exponencial.
+        if res.status_code == 429 and tentativa < _tentativas - 1:
+            espera = float(res.headers.get("Retry-After") or 2 ** (tentativa + 1))
+            time.sleep(min(espera, 30))
+            continue
+
+        if not res.ok:
+            raise SolarzApiError(f"Solarz respondeu {res.status_code}: {res.text[:500]}", res.status_code)
+        return res.json() if res.content else None
 
 
 def criar_negocio(*, nome_negocio, pipeline_id, pipeline_stage_id, pessoa_nome, pessoa_telefone):
-    """Cria pessoa + negócio na Solarz numa única chamada. Retorna o dealId."""
+    """Cria pessoa + negócio na Solarz numa única chamada. Retorna o dealId.
+
+    Atenção: o id retornado NÃO é estável — os devs da Solarz confirmaram que o
+    id de negócio muda quando ele troca de funil. O vínculo confiável com a
+    indicação local é o telefone da pessoa (ver sync_solarz.py)."""
     body = {
         "deal": {
             "name": nome_negocio,
@@ -87,10 +99,24 @@ def criar_negocio(*, nome_negocio, pipeline_id, pipeline_stage_id, pessoa_nome, 
     return data["id"]
 
 
-def buscar_negocios(deal_ids):
-    """Busca o status/pipeline/estágio atual de vários negócios de uma vez."""
-    if not deal_ids:
-        return []
-    ids_qs = "&".join(f"ids={i}" for i in deal_ids)
-    data = _request("GET", f"/v2/open-api/deal/find-all?{ids_qs}&page=0&size={len(deal_ids)}")
-    return data["content"]
+def buscar_pessoa_por_telefone(telefone):
+    """Busca a pessoa no CRM pelo telefone. Retorna a primeira ou None."""
+    data = _request("GET", f"/v2/open-api/client/persons?phone={telefone}&page=0&size=1")
+    content = data.get("content") or []
+    return content[0] if content else None
+
+
+def listar_negocios(page=0, size=100, pipeline_id=None):
+    """Listagem paginada de negócios (itens vêm com personId/pipelineId flat,
+    sem os objetos aninhados do GET /deal/{id})."""
+    qs = f"page={page}&size={size}"
+    if pipeline_id:
+        qs += f"&pipelineId={pipeline_id}"
+    return _request("GET", f"/v2/open-api/deal?{qs}")
+
+
+def listar_propostas(page=0, size=100):
+    """Listagem paginada de propostas. É aqui (e não no deal) que vive a
+    geração esperada do sistema: custom field "Geração do Sistema (kWh/mês):"
+    em initialDataCustomFieldValues, vinculada à pessoa por personId."""
+    return _request("GET", f"/v2/open-api/proposals?page={page}&size={size}")

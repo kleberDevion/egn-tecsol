@@ -13,9 +13,6 @@ STATUS_VALIDOS = ("recebido", "em_atendimento", "negociacao", "fechado", "perdid
 RESULTADOS_VALIDOS = ("novo_contrato", "em_andamento", "sem_interesse", "cancelado")
 CAMPOS_EDITAVEIS = ["status", "setor", "valor_sistema", "resultado", "tipo_contrato", "observacoes"]
 
-# Níveis de comissão: nunca aceitos do corpo da requisição, sempre lidos daqui.
-NIVEL_ORDEM = ["indicador", "apoiador", "parceiro", "embaixador", "elite"]
-
 
 def _row_to_dict(row):
     return dict(row)
@@ -26,45 +23,6 @@ def _get_or_404(db, indicacao_id):
     if row is None:
         raise ApiError("NOT_FOUND", f"Indicação {indicacao_id} não encontrada", 404)
     return row
-
-
-def _proximo_nivel(nivel_atual, total_vendas):
-    if total_vendas >= 10:
-        return "elite"
-    if total_vendas >= 5 and nivel_atual == "indicador":
-        return "parceiro"
-    if total_vendas >= 5 and nivel_atual == "apoiador":
-        return "embaixador"
-    if total_vendas >= 3 and nivel_atual == "indicador":
-        return "apoiador"
-    if total_vendas >= 3 and nivel_atual == "apoiador":
-        return "parceiro"
-    return nivel_atual
-
-
-def _fechar_indicacao(db, indicacao, valor_sistema):
-    """Calcula a comissão a partir de niveis_config e atualiza os totais/nível do
-    indicador. Espelha o trigger `handle_indicacao_fechada` do app original."""
-    indicador = db.execute(
-        "SELECT * FROM indicadores WHERE id = ?", (indicacao["indicador_id"],)
-    ).fetchone()
-    nivel = db.execute(
-        "SELECT * FROM niveis_config WHERE nivel = ?", (indicador["nivel"],)
-    ).fetchone()
-    valor = valor_sistema or 0
-    comissao = nivel["valor_fixo"] + valor * nivel["percentual"]
-
-    novo_total = indicador["total_vendas"] + 1
-    novo_nivel = _proximo_nivel(indicador["nivel"], novo_total)
-
-    db.execute(
-        """UPDATE indicadores
-           SET total_vendas = ?, total_ganhos = total_ganhos + ?, nivel = ?,
-               atualizado_em = strftime('%Y-%m-%dT%H:%M:%SZ','now')
-           WHERE id = ?""",
-        (novo_total, comissao, novo_nivel, indicador["id"]),
-    )
-    return comissao
 
 
 @bp.get("")
@@ -137,10 +95,9 @@ def update_indicacao(indicacao_id):
             params,
         )
 
-    if fechando_agora:
-        valor_sistema = updates.get("valor_sistema", indicacao["valor_sistema"])
-        comissao = _fechar_indicacao(db, indicacao, valor_sistema)
-        db.execute("UPDATE indicacoes SET comissao_gerada = ? WHERE id = ?", (comissao, indicacao_id))
+    # A comissão NÃO é calculada aqui: o modelo vigente é multi-nível por kWh
+    # de geração esperada, aplicado pelo sync com a Solarz (app/sync_indicacoes
+    # .py) quando encontra a indicação fechada com comissao_gerada NULL.
 
     db.commit()
     log_activity(
