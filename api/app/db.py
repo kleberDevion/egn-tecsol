@@ -185,6 +185,8 @@ def _ensure_columns(conn):
     conn.executescript(
         """
         ALTER TABLE usuarios   ADD COLUMN IF NOT EXISTS foto_path TEXT;
+        ALTER TABLE usuarios   ADD COLUMN IF NOT EXISTS foto_bytes BYTEA;
+        ALTER TABLE usuarios   ADD COLUMN IF NOT EXISTS foto_tipo TEXT;
         ALTER TABLE projetos   ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'ativo';
         ALTER TABLE indicacoes ADD COLUMN IF NOT EXISTS chat_token TEXT;
         ALTER TABLE indicacoes ADD COLUMN IF NOT EXISTS solarz_deal_id INTEGER;

@@ -1,6 +1,7 @@
+import io
 from pathlib import Path
 
-from flask import Blueprint, current_app, g, jsonify, request, send_from_directory, session
+from flask import Blueprint, current_app, g, jsonify, request, send_file, send_from_directory, session
 
 from app.auth import foto_url, hash_password, log_activity, require_login, user_grupos, verify_password
 from app.db import get_db
@@ -127,8 +128,14 @@ def change_password():
     return "", 204
 
 
+TIPOS_POR_EXTENSAO = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp"}
+TAMANHO_MAXIMO_FOTO = 3 * 1024 * 1024  # 3 MB
+
+
 @bp.post("/foto")
 def upload_foto():
+    """A imagem é guardada no banco, não em disco: a hospedagem apaga o disco a
+    cada deploy (a foto sumia e o perfil ficava com ícone quebrado)."""
     require_login()
     arquivo = request.files.get("foto")
     if arquivo is None or arquivo.filename == "":
@@ -138,16 +145,18 @@ def upload_foto():
     if extensao not in EXTENSOES_PERMITIDAS:
         raise ApiError("VALIDATION_ERROR", "Formato inválido. Use PNG, JPG ou WEBP.", 400)
 
-    avatar_dir = _avatar_dir()
-    for existente in avatar_dir.glob(f"{g.user['id']}.*"):
-        existente.unlink()
-    destino = avatar_dir / f"{g.user['id']}.{extensao}"
-    arquivo.save(destino)
+    conteudo = arquivo.read()
+    if not conteudo:
+        raise ApiError("VALIDATION_ERROR", "Arquivo vazio", 400)
+    if len(conteudo) > TAMANHO_MAXIMO_FOTO:
+        raise ApiError("VALIDATION_ERROR", "Imagem muito grande. O limite é 3 MB.", 400)
 
     db = get_db()
     db.execute(
-        "UPDATE usuarios SET foto_path = ?, atualizado_em = strftime('%Y-%m-%dT%H:%M:%SZ','now') WHERE id = ?",
-        (destino.name, g.user["id"]),
+        """UPDATE usuarios SET foto_bytes = ?, foto_tipo = ?, foto_path = ?,
+                  atualizado_em = strftime('%Y-%m-%dT%H:%M:%SZ','now')
+            WHERE id = ?""",
+        (conteudo, TIPOS_POR_EXTENSAO[extensao], f"{g.user['id']}.{extensao}", g.user["id"]),
     )
     db.commit()
     log_activity(db, "update", "usuarios", g.user["id"], "Foto de perfil atualizada")
@@ -159,7 +168,20 @@ def upload_foto():
 def get_foto(usuario_id):
     require_login()
     db = get_db()
-    row = db.execute("SELECT foto_path FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
-    if row is None or not row["foto_path"]:
+    row = db.execute(
+        "SELECT foto_bytes, foto_tipo, foto_path FROM usuarios WHERE id = ?", (usuario_id,)
+    ).fetchone()
+    if row is None:
         raise ApiError("NOT_FOUND", "Foto não encontrada", 404)
-    return send_from_directory(_avatar_dir(), row["foto_path"])
+
+    if row["foto_bytes"]:
+        return send_file(
+            io.BytesIO(bytes(row["foto_bytes"])),
+            mimetype=row["foto_tipo"] or "image/jpeg",
+            max_age=300,
+        )
+
+    # Fotos enviadas antes da mudança ainda podem estar em disco (dev local).
+    if row["foto_path"] and (_avatar_dir() / row["foto_path"]).exists():
+        return send_from_directory(_avatar_dir(), row["foto_path"])
+    raise ApiError("NOT_FOUND", "Foto não encontrada", 404)

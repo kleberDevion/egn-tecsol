@@ -169,3 +169,57 @@ class TestCors:
 class TestHealth:
     def test_health(self, client):
         assert client.get("/api/v1/health").get_json() == {"status": "ok"}
+
+
+class TestFotoDePerfil:
+    """A foto fica no banco, nao em disco: a hospedagem apaga o disco a cada
+    deploy, e a foto sumia sem deixar rastro."""
+
+    def _png(self):
+        # PNG 1x1 valido, menor arquivo possivel
+        import base64
+
+        return base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+        )
+
+    def _enviar(self, client, nome="foto.png", conteudo=None):
+        import io
+
+        return client.post(
+            "/api/v1/auth/foto",
+            data={"foto": (io.BytesIO(conteudo if conteudo is not None else self._png()), nome)},
+            content_type="multipart/form-data",
+        )
+
+    def test_upload_guarda_no_banco(self, admin, db):
+        resp = self._enviar(admin)
+        assert resp.status_code == 200
+        assert resp.get_json()["foto_url"] is not None
+
+        linha = dict(db.execute("SELECT foto_bytes, foto_tipo FROM usuarios WHERE email = 'admin@teste.com'").fetchone())
+        assert linha["foto_bytes"] is not None
+        assert linha["foto_tipo"] == "image/png"
+
+    def test_download_devolve_a_imagem(self, admin, db):
+        self._enviar(admin)
+        uid = db.execute("SELECT id FROM usuarios WHERE email = 'admin@teste.com'").fetchone()["id"]
+
+        resp = admin.get(f"/api/v1/auth/foto/{uid}")
+        assert resp.status_code == 200
+        assert resp.mimetype == "image/png"
+        assert resp.data == self._png()
+
+    def test_formato_invalido_recusado(self, admin):
+        assert self._enviar(admin, nome="virus.exe").status_code == 400
+
+    def test_arquivo_grande_recusado(self, admin):
+        grande = b"\x89PNG" + b"0" * (4 * 1024 * 1024)
+        assert self._enviar(admin, conteudo=grande).status_code == 400
+
+    def test_usuario_sem_foto_da_404(self, admin, db):
+        uid = db.execute("SELECT id FROM usuarios WHERE email = 'admin@teste.com'").fetchone()["id"]
+        assert admin.get(f"/api/v1/auth/foto/{uid}").status_code == 404
+
+    def test_foto_exige_login(self, client):
+        assert client.get("/api/v1/auth/foto/1").status_code == 401

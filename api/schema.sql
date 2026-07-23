@@ -78,7 +78,11 @@ CREATE TABLE IF NOT EXISTS usuarios (
     senha_hash TEXT NOT NULL,
     papel TEXT NOT NULL CHECK(papel IN ('admin','operador')) DEFAULT 'operador',
     ativo INTEGER NOT NULL DEFAULT 1,
+    -- A foto fica no banco, nao em disco: a hospedagem apaga o disco a
+    -- cada deploy, e o worker pode rodar em outra maquina.
     foto_path TEXT,
+    foto_bytes BYTEA,
+    foto_tipo TEXT,
     criado_em TEXT NOT NULL DEFAULT to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
     atualizado_em TEXT NOT NULL DEFAULT to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
     ultimo_login_em TEXT
