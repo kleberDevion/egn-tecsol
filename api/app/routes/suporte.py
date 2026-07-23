@@ -1,4 +1,4 @@
-import sqlite3
+import psycopg
 
 from flask import Blueprint, g, jsonify, request
 
@@ -42,7 +42,10 @@ def list_threads():
                    (SELECT criado_em FROM suporte_mensagens WHERE thread_id = t.id ORDER BY criado_em DESC, id DESC LIMIT 1) AS ultima_mensagem_em
             FROM suporte_threads t JOIN usuarios u ON u.id = t.usuario_id
             {where}
-            ORDER BY COALESCE(ultima_mensagem_em, t.criado_em) DESC""",
+            ORDER BY COALESCE(
+                (SELECT criado_em FROM suporte_mensagens WHERE thread_id = t.id ORDER BY criado_em DESC, id DESC LIMIT 1),
+                t.criado_em
+            ) DESC""",
         params,
     ).fetchall()
     return jsonify({"data": [dict(r) for r in rows]})
@@ -169,7 +172,8 @@ def avaliar_thread(thread_id):
             "INSERT INTO suporte_avaliacoes (thread_id, admin_usuario_id, positiva, comentario) VALUES (?, ?, ?, ?)",
             (thread_id, thread["admin_usuario_id"], int(body["positiva"]), (body.get("comentario") or "").strip() or None),
         )
-    except sqlite3.IntegrityError:
+    except psycopg.IntegrityError:
+        db.rollback()
         raise ApiError("CONFLICT", "Essa conversa já foi avaliada", 409)
     db.commit()
     row = db.execute("SELECT * FROM suporte_avaliacoes WHERE thread_id = ?", (thread_id,)).fetchone()

@@ -1,6 +1,11 @@
 import type { ApiErrorBody } from "@/types";
 
-const BASE_URL = "/api/v1";
+// Em dev o Vite faz proxy de /api pro Flask (ver vite.config.ts). Em produção
+// o CRM é servido como site estático em outro host, então precisa da URL
+// absoluta da API — injetada no build via VITE_API_URL.
+const BASE_URL = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api/v1`
+  : "/api/v1";
 
 export class ApiError extends Error {
   code: string;

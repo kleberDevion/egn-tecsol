@@ -1,0 +1,16 @@
+[Unit]
+Description=Tecsol worker (dramatiq — sync com a Solarz e geração de documentos)
+After=network.target redis-server.service postgresql.service
+Wants=redis-server.service postgresql.service
+
+[Service]
+Type=simple
+User=tecsol
+WorkingDirectory=/opt/tecsol/egn-tecsol/api
+EnvironmentFile=/opt/tecsol/egn-tecsol/api/.env
+ExecStart=/opt/tecsol/venv/bin/dramatiq app.tasks --processes 1 --threads 2
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,26 +1,28 @@
 """Dramatiq: fila e agendamento da sincronização com a Solarz.
 
-Broker: RabbitMQ, via env RABBITMQ_URL (default amqp://guest:guest@127.0.0.1:5672).
+Broker: Redis, via env REDIS_URL (default redis://127.0.0.1:6379/0). A Render
+oferece Redis gerenciado ("Key Value"), mas não RabbitMQ — por isso o broker
+é Redis, não AMQP.
 
 Como rodar:
-    dramatiq app.tasks --processes 1 --threads 1     # worker
-    periodiq app.tasks                               # agendador (cron)
+    dramatiq app.tasks --processes 1 --threads 2    # worker
+    periodiq app.tasks                              # agendador (cron)
 
 O periodiq dispara a sync a cada 15 minutos (crontab abaixo). Além disso,
 run.py enfileira uma execução imediata na subida do servidor — e, se o broker
-estiver fora do ar (ex: dev local sem RabbitMQ), cai num fallback inline pra
-sync inicial não deixar de acontecer.
+estiver fora do ar, cai num fallback inline pra sync inicial não deixar de
+acontecer.
 """
 
 import os
 
 import dramatiq
-from dramatiq.brokers.rabbitmq import RabbitmqBroker
+from dramatiq.brokers.redis import RedisBroker
 from periodiq import PeriodiqMiddleware, cron
 
-RABBITMQ_URL = os.environ.get("RABBITMQ_URL", "amqp://guest:guest@127.0.0.1:5672")
+REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/0")
 
-broker = RabbitmqBroker(url=RABBITMQ_URL)
+broker = RedisBroker(url=REDIS_URL)
 broker.add_middleware(PeriodiqMiddleware(skip_delay=30))
 dramatiq.set_broker(broker)
 
@@ -36,3 +38,16 @@ def sync_solarz():
     app = create_app()
     with app.app_context():
         sincronizar(get_db())
+
+
+@dramatiq.actor(max_retries=1, time_limit=600_000)
+def gerar_documentos(geracao_id):
+    """Gera os .docx de um negócio. Roda fora do request porque envolve várias
+    chamadas à Solarz + escrita em disco."""
+    from app import create_app
+    from app.db import get_db
+    from app.geracao_documentos import executar
+
+    app = create_app()
+    with app.app_context():
+        executar(get_db(), geracao_id, app.config["MODELOS_DIR"])

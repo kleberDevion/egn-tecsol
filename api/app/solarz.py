@@ -27,6 +27,8 @@ STAGE_PRE_VENDAS_PROSPECT = 42920
 # app definiu como o negócio estar fechado.
 PIPELINE_VENDAS = 7603
 STAGE_VENDAS_CONTRATO_ASSINADO = 42933
+# Estágio que alimenta a tela "Geração de Documentação" do CRM.
+STAGE_VENDAS_GERAR_DOCUMENTACAO = 51691
 
 # "Engenharia": vem depois de Vendas — usado hoje só pra reconhecer que o
 # negócio já foi fechado (todo pipeline pós-Vendas conta como fechado).
@@ -113,6 +115,12 @@ def listar_negocios(page=0, size=100, pipeline_id=None):
     if pipeline_id:
         qs += f"&pipelineId={pipeline_id}"
     return _request("GET", f"/v2/open-api/deal?{qs}")
+
+
+def buscar_negocio(deal_id):
+    """Detalhe completo do negócio (traz pessoa, endereço e campos custom —
+    coisas que a listagem não devolve)."""
+    return _request("GET", f"/v2/open-api/deal/{deal_id}")
 
 
 def listar_propostas(page=0, size=100):

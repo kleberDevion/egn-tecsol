@@ -1,0 +1,109 @@
+# Blueprint da Render para o egn-tecsol (API Flask + CRM + worker + agendador).
+# Os outros dois frontends tem render.yaml proprio nos respectivos repos:
+# tp-app (app de indicacoes) e site-tecsol (site institucional).
+#
+# A Render instala as dependencias a cada deploy rodando o buildCommand num
+# ambiente limpo — nada precisa ser commitado alem de requirements.txt.
+#
+# Nao ha disco persistente aqui de proposito: os documentos gerados sao
+# remontados sob demanda a partir do contexto guardado no banco (ver
+# app/geracao_documentos.py), entao o disco efemero da Render nao atrapalha.
+
+databases:
+  - name: tecsol-db
+    databaseName: tecsol
+    plan: free
+
+services:
+  # ---------------------------------------------------------------- API Flask
+  - type: web
+    name: tecsol-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r api/requirements.txt
+    # 1 worker so: o Socket.IO guarda as salas em memoria; com varios workers
+    # o chat/presenca quebraria sem um message queue compartilhado.
+    startCommand: cd api && gunicorn -w 1 --threads 8 -b 0.0.0.0:$PORT run:app
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tecsol-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: tecsol-redis
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: COOKIE_CROSS_SITE
+        value: "1"
+      # Origens dos frontends — ajustar pros dominios reais depois do 1o deploy.
+      - key: CORS_ORIGINS
+        value: https://tecsol-crm.onrender.com,https://tecsol-parceiros.onrender.com,https://tecsol-site.onrender.com
+      # Colar no painel da Render (nao vao pro git):
+      - key: SOLARZ_API_TOKEN
+        sync: false
+      - key: GOOGLE_ADS_WEBHOOK_KEY
+        sync: false
+
+  # ------------------------------------------------- Worker (fila do dramatiq)
+  - type: worker
+    name: tecsol-worker
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r api/requirements.txt
+    startCommand: cd api && dramatiq app.tasks --processes 1 --threads 2
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tecsol-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: tecsol-redis
+          property: connectionString
+      - key: SOLARZ_API_TOKEN
+        sync: false
+
+  # -------------------------------------- Agendador (cron */15 via periodiq)
+  - type: worker
+    name: tecsol-scheduler
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r api/requirements.txt
+    startCommand: cd api && periodiq app.tasks
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tecsol-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: tecsol-redis
+          property: connectionString
+      - key: SOLARZ_API_TOKEN
+        sync: false
+
+  # ------------------------------------------------------------- CRM (estatico)
+  - type: web
+    name: tecsol-crm
+    runtime: static
+    buildCommand: cd crm && npm ci && npm run build
+    staticPublishPath: crm/dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://tecsol-api.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  # --------------------------------------------------------- Redis (dramatiq)
+  - type: redis
+    name: tecsol-redis
+    plan: free
+    ipAllowList: []

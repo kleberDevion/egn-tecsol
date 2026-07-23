@@ -12,13 +12,16 @@ Uso:
 """
 
 import re
-import sqlite3
+import os
+
+import psycopg
+
+from app.db import Connection
 import sys
 from pathlib import Path
 
 API_DIR = Path(__file__).resolve().parent
 DATA_ROOT = API_DIR.parent
-DB_PATH = API_DIR / "tecsol.db"
 SCHEMA_PATH = API_DIR / "schema.sql"
 
 SOURCE_DIR = DATA_ROOT / "06-HOMOLOGADOS" / "06-HOMOLOGADOS"
@@ -115,8 +118,7 @@ def main():
     projetos_info = montar_projetos_info()
     print(f"Pastas de projeto encontradas: {len(projetos_info)}")
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("PRAGMA foreign_keys = ON")
+    conn = Connection(psycopg.connect(os.environ["DATABASE_URL"]))
     conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
 
     codigos_existentes = {row[0] for row in conn.execute("SELECT codigo FROM projetos")}

@@ -1,0 +1,16 @@
+[Unit]
+Description=Tecsol scheduler (periodiq — dispara a sync a cada 15 min)
+After=network.target redis-server.service
+Wants=redis-server.service
+
+[Service]
+Type=simple
+User=tecsol
+WorkingDirectory=/opt/tecsol/egn-tecsol/api
+EnvironmentFile=/opt/tecsol/egn-tecsol/api/.env
+ExecStart=/opt/tecsol/venv/bin/periodiq app.tasks
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

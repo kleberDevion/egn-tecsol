@@ -13,15 +13,15 @@ app = create_app()
 def _sync_inicial():
     """Dispara a sincronização com a Solarz imediatamente na subida do
     servidor (o recorrente de 15 em 15 min é do periodiq, app/tasks.py).
-    Se o broker RabbitMQ não estiver acessível (ex: dev local sem RabbitMQ),
-    roda inline numa thread pra sync inicial acontecer mesmo assim."""
+    Se o broker Redis não estiver acessível (ex: dev local sem Redis), roda
+    inline numa thread pra sync inicial acontecer mesmo assim."""
     try:
         from app.tasks import sync_solarz
 
         sync_solarz.send()
         logger.info("Sync inicial enfileirada no Dramatiq.")
     except Exception as e:
-        logger.warning("Broker RabbitMQ indisponível (%s) — rodando sync inicial inline.", e)
+        logger.warning("Broker Redis indisponível (%s) — rodando sync inicial inline.", e)
 
         def _inline():
             from app.db import get_db

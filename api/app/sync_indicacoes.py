@@ -39,8 +39,6 @@ from app.solarz import (
 
 logger = logging.getLogger(__name__)
 
-STATUS_ABERTOS = ("recebido", "em_atendimento", "negociacao")
-
 # O nome oficial do campo (definido pelo dono) é "Geração esperada" — ele tem
 # prioridade. O genérico cobre o label que existe hoje nas propostas da conta
 # ("Geração do Sistema (kWh/mês):") enquanto o campo oficial não é criado.
@@ -171,6 +169,39 @@ def _geracao_da_indicacao(pessoa_id, deal, geracao_pessoa, geracao_deal):
     return _extrair_geracao(deal.get("dealCustomFieldValues"))
 
 
+def _estornar_comissao(db, indicacao_id):
+    """Desfaz a comissão quando o negócio deixa de estar fechado na Solarz
+    (estágio regrediu, ou virou perdido depois de fechado). Sem isso o
+    indicador ficaria com o crédito de uma venda que não existe mais.
+    Retorna True se havia algo pra estornar."""
+    linhas = db.execute(
+        "SELECT indicador_id, nivel, valor FROM comissoes WHERE indicacao_id = ?", (indicacao_id,)
+    ).fetchall()
+    if not linhas:
+        return False
+
+    for linha in linhas:
+        db.execute(
+            """UPDATE indicadores
+                  SET total_ganhos = GREATEST(total_ganhos - ?, 0),
+                      total_vendas = CASE WHEN ? = 1 THEN GREATEST(total_vendas - 1, 0) ELSE total_vendas END,
+                      atualizado_em = strftime('%Y-%m-%dT%H:%M:%SZ','now')
+                WHERE id = ?""",
+            (linha["valor"], linha["nivel"], linha["indicador_id"]),
+        )
+    db.execute("DELETE FROM comissoes WHERE indicacao_id = ?", (indicacao_id,))
+    logger.info("Indicação %s: comissão estornada (%s lançamento(s)).", indicacao_id, len(linhas))
+    return True
+
+
+def _remover_indicacao(db, indicacao_id):
+    """Apaga a indicação (e o que depende dela) quando o negócio some da
+    Solarz. O estorno vem antes pra devolver os ganhos creditados."""
+    _estornar_comissao(db, indicacao_id)
+    db.execute("DELETE FROM mensagens WHERE indicacao_id = ?", (indicacao_id,))
+    db.execute("DELETE FROM indicacoes WHERE id = ?", (indicacao_id,))
+
+
 def _aplicar_comissao(db, indicacao_id, indicador_id, kwh):
     """Credita a comissão multi-nível de uma venda fechada. Idempotente: se já
     existe extrato pra essa indicação, não credita de novo. Retorna o valor do
@@ -224,15 +255,16 @@ def sincronizar(db, indicador_id=None):
     do negócio na Solarz + comissão quando fecha. Também repesca indicações já
     fechadas cuja comissão ficou pendente por falta da geração na proposta.
     Retorna quantas foram atualizadas."""
-    placeholders = ",".join("?" * len(STATUS_ABERTOS))
+    # Sincroniza TODAS as indicações, não só as abertas: se o negócio regredir
+    # de estágio na Solarz (ou for reaberto depois de perdido), o card no app
+    # precisa voltar junto. Filtrar por status deixaria o card travado.
     query = (
-        f"SELECT id, indicador_id, solarz_deal_id, telefone_indicado, status, comissao_gerada "
-        f"FROM indicacoes WHERE (status IN ({placeholders}) "
-        f"OR (status = 'fechado' AND comissao_gerada IS NULL))"
+        "SELECT id, indicador_id, solarz_deal_id, telefone_indicado, status, comissao_gerada "
+        "FROM indicacoes"
     )
-    params = list(STATUS_ABERTOS)
+    params = []
     if indicador_id is not None:
-        query += " AND indicador_id = ?"
+        query += " WHERE indicador_id = ?"
         params.append(indicador_id)
 
     rows = db.execute(query, params).fetchall()
@@ -266,7 +298,19 @@ def sincronizar(db, indicador_id=None):
 
         deal = negocios_por_pessoa.get(pessoa["id"])
         if deal is None:
-            logger.info("Indicação %s: pessoa %s sem negócio na Solarz.", row["id"], pessoa["id"])
+            # Negócio apagado na Solarz: a indicação some daqui também, pra o
+            # app espelhar o CRM. Sem solarz_deal_id o negócio nunca chegou a
+            # ser criado (falha de rede na hora do cadastro) — nesse caso a
+            # indicação fica, senão perderíamos um lead legítimo.
+            if row["solarz_deal_id"]:
+                logger.info(
+                    "Indicação %s: negócio %s não existe mais na Solarz — removendo.",
+                    row["id"], row["solarz_deal_id"],
+                )
+                _remover_indicacao(db, row["id"])
+                atualizados += 1
+            else:
+                logger.info("Indicação %s: pessoa %s sem negócio na Solarz.", row["id"], pessoa["id"])
             continue
 
         novo_status = _mapear_status(deal.get("status"), deal.get("pipelineId"), deal.get("pipelineStageId"))
@@ -295,6 +339,12 @@ def sincronizar(db, indicador_id=None):
                     "Indicação %s: fechada, mas proposta da pessoa %s ainda sem geração (kWh) — comissão pendente.",
                     row["id"], pessoa["id"],
                 )
+        elif novo_status != "fechado" and row["status"] == "fechado":
+            # Regrediu de estágio na Solarz: desfaz o crédito e limpa os valores
+            # que só existem em venda fechada.
+            if _estornar_comissao(db, row["id"]):
+                updates.append("comissao_gerada = NULL")
+            updates.append("valor_sistema = NULL")
 
         if updates:
             params.append(row["id"])

@@ -1,7 +1,7 @@
 import logging
 import random
 import re
-import sqlite3
+import psycopg
 
 from flask import Blueprint, g, jsonify, request, session
 
@@ -117,7 +117,8 @@ def signup():
                VALUES (?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%SZ','now'))""",
             (nome, email, telefone, hash_password(senha), codigo, recrutado_por_id),
         )
-    except sqlite3.IntegrityError:
+    except psycopg.IntegrityError:
+        db.rollback()
         raise ApiError("CONFLICT", f"Já existe uma conta com o e-mail '{email}'", 409)
     db.commit()
     session["indicador_id"] = cur.lastrowid
@@ -186,7 +187,7 @@ def update_me():
 @bp.post("/sync")
 def sync_minhas_indicacoes():
     """Botão "Atualizar" do app: sincroniza na hora (inline) só as indicações
-    do indicador logado, pra ele não precisar esperar o ciclo do Celery beat."""
+    do indicador logado, sem esperar o ciclo periódico do worker."""
     require_indicador_login()
     from app.sync_indicacoes import sincronizar
 
@@ -196,6 +197,51 @@ def sync_minhas_indicacoes():
         logger.exception("Sync sob demanda falhou (indicador %s)", g.indicador["id"])
         raise ApiError("UPSTREAM_ERROR", "Não foi possível consultar o CRM agora. Tente de novo em instantes.", 502)
     return jsonify({"atualizadas": atualizadas})
+
+
+@bp.get("/minhas-comissoes")
+def minhas_comissoes():
+    """Extrato de comissões do indicador logado. Inclui as que ele recebeu como
+    nível 2/3 (vendas de quem ele recrutou), que não aparecem em
+    /minhas-indicacoes porque a indicação é de outra pessoa."""
+    require_indicador_login()
+    db = get_db()
+    rows = db.execute(
+        """SELECT c.id, c.nivel, c.kwh, c.valor_por_kwh, c.valor, c.criado_em,
+                  i.nome_indicado, i.valor_sistema,
+                  ind.nome AS indicador_origem
+             FROM comissoes c
+             JOIN indicacoes i ON i.id = c.indicacao_id
+             JOIN indicadores ind ON ind.id = i.indicador_id
+            WHERE c.indicador_id = ?
+            ORDER BY c.criado_em DESC""",
+        (g.indicador["id"],),
+    ).fetchall()
+    return jsonify({"data": [dict(r) for r in rows]})
+
+
+@bp.get("/minha-rede")
+def minha_rede():
+    """Quem o indicador recrutou (nível 2) e quem esses recrutaram (nível 3)."""
+    require_indicador_login()
+    db = get_db()
+    diretos = db.execute(
+        "SELECT id, nome, nivel, total_vendas, criado_em FROM indicadores WHERE recrutado_por_id = ? ORDER BY criado_em DESC",
+        (g.indicador["id"],),
+    ).fetchall()
+    ids = [d["id"] for d in diretos]
+    indiretos = []
+    if ids:
+        marcadores = ",".join("?" * len(ids))
+        indiretos = db.execute(
+            f"SELECT id, nome, nivel, total_vendas, recrutado_por_id, criado_em FROM indicadores "
+            f"WHERE recrutado_por_id IN ({marcadores}) ORDER BY criado_em DESC",
+            ids,
+        ).fetchall()
+    return jsonify({
+        "nivel_2": [dict(r) for r in diretos],
+        "nivel_3": [dict(r) for r in indiretos],
+    })
 
 
 @bp.get("/minhas-indicacoes")

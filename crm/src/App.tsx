@@ -14,6 +14,7 @@ import { ConcessionariasPage } from "@/pages/concessionarias/ConcessionariasPage
 import { AdminPage } from "@/pages/admin/AdminPage";
 import { IndicacoesPage } from "@/pages/indicacoes/IndicacoesPage";
 import { SuportePage } from "@/pages/suporte/SuportePage";
+import { GeracaoDocumentosPage } from "@/pages/documentos/GeracaoDocumentosPage";
 import { WorkspacePage } from "@/pages/workspace/WorkspacePage";
 
 export default function App() {
@@ -33,6 +34,7 @@ export default function App() {
                 <Route path="usinas/:id" element={<UsinaDetailPage />} />
                 <Route path="concessionarias" element={<ConcessionariasPage />} />
                 <Route path="suporte" element={<SuportePage />} />
+                <Route path="geracao-documentos" element={<GeracaoDocumentosPage />} />
                 <Route path="workspace/:grupo" element={<WorkspacePage />} />
                 <Route element={<RequireGrupo grupo="vendas" />}>
                   <Route path="indicacoes" element={<IndicacoesPage />} />

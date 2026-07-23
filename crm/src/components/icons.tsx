@@ -225,3 +225,18 @@ export const IconHelpCircle = (p: SVGProps<SVGSVGElement>) => (
     <line x1="12" y1="17" x2="12.01" y2="17" />
   </Icon>
 );
+
+export const IconRefresh = (p: SVGProps<SVGSVGElement>) => (
+  <Icon {...p}>
+    <polyline points="23 4 23 10 17 10" />
+    <polyline points="1 20 1 14 7 14" />
+    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+  </Icon>
+);
+
+export const IconPanelLeft = (p: SVGProps<SVGSVGElement>) => (
+  <Icon {...p}>
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <line x1="9" y1="3" x2="9" y2="21" />
+  </Icon>
+);

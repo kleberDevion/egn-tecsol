@@ -11,14 +11,17 @@ Deliberadamente NÃO lê as abas "Portais" e "Login concessionária" do arquivo
 """
 
 import re
-import sqlite3
+import os
+
+import psycopg
+
+from app.db import Connection
 from pathlib import Path
 
 import pandas as pd
 
 API_DIR = Path(__file__).resolve().parent
 DATA_ROOT = API_DIR.parent
-DB_PATH = API_DIR / "tecsol.db"
 SCHEMA_PATH = API_DIR / "schema.sql"
 
 PROJETOS_DIR = DATA_ROOT / "2026" / "2026"
@@ -45,8 +48,9 @@ MESES = {
 def reset_schema(conn):
     conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
     for tabela in ["geracao", "documentos", "usinas", "projetos", "clientes", "concessionarias"]:
-        conn.execute(f"DELETE FROM {tabela}")
-        conn.execute("DELETE FROM sqlite_sequence WHERE name = ?", (tabela,))
+        # TRUNCATE ... RESTART IDENTITY zera a sequence do SERIAL junto (no
+        # SQLite isso era feito apagando a linha em sqlite_sequence).
+        conn.execute(f"TRUNCATE {tabela} RESTART IDENTITY CASCADE")
     conn.commit()
 
 
@@ -203,9 +207,8 @@ def seed_concessionarias(conn):
 
 
 def main():
-    print(f"Banco de destino: {DB_PATH}")
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("PRAGMA foreign_keys = ON")
+    print(f"Banco de destino: {os.environ['DATABASE_URL']}")
+    conn = Connection(psycopg.connect(os.environ["DATABASE_URL"]))
     try:
         print("Recriando schema...")
         reset_schema(conn)

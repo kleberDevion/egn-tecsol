@@ -200,6 +200,32 @@ export interface ComissaoNivel {
   valor_por_kwh: number;
 }
 
+// Negócio parado no estágio "Gerar Documentação" da Solarz — vira card na tela.
+export interface NegocioPendente {
+  solarz_deal_id: number;
+  nome_negocio: string | null;
+  valor_projeto: number | null;
+  criado_em: string | null;
+  ja_gerado: boolean;
+}
+
+export interface GeracaoDocumento {
+  id: number;
+  solarz_deal_id: number;
+  cliente_id: number | null;
+  cliente_nome: string | null;
+  projeto_id: number | null;
+  projeto_codigo: string | null;
+  numero_pedido: string | null;
+  numero_cft: string | null;
+  status: "processando" | "pronto" | "erro";
+  erro: string | null;
+  pasta: string | null;
+  arquivos: string[];
+  criado_em: string;
+  atualizado_em: string;
+}
+
 export interface Indicador {
   id: number;
   nome: string;
