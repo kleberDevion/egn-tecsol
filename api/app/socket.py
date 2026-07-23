@@ -1,10 +1,23 @@
+import os
+
 from flask import request, session
 from flask_socketio import SocketIO, emit, join_room
 
 from app import presence
 from app.db import get_db
 
-socketio = SocketIO(manage_session=True, cors_allowed_origins="*")
+
+def _origens_do_socket():
+    """Mesma lista branca do CORS das rotas REST (CORS_ORIGINS). Não dá pra
+    usar "*" aqui: o cliente conecta com credenciais (o cookie de sessão), e o
+    navegador recusa `Access-Control-Allow-Origin: *` nesse caso. Sem a
+    variável definida (dev), libera geral."""
+    valor = os.environ.get("CORS_ORIGINS", "").strip()
+    origens = [o.strip().rstrip("/") for o in valor.split(",") if o.strip()]
+    return origens or "*"
+
+
+socketio = SocketIO(manage_session=True, cors_allowed_origins=_origens_do_socket(), cors_credentials=True)
 
 
 def _current_user_row():
