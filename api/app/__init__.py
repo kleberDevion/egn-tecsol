@@ -5,20 +5,24 @@ from flask import Flask, request
 
 
 def _load_dotenv():
-    """Carrega api/.env pro os.environ (sem sobrescrever o que já existe).
+    """Carrega o .env pro os.environ (sem sobrescrever o que já existe).
     Feito na mão pra não depender do python-dotenv — o arquivo só tem
-    CHAVE=valor por linha (ex: SOLARZ_API_TOKEN). Necessário porque, dependendo
-    de como o servidor é iniciado (reloader do Flask, launcher do PyManager,
-    Agendador de Tarefas), variáveis do shell nem sempre chegam ao processo."""
-    env_path = Path(__file__).resolve().parent.parent / ".env"
-    if not env_path.exists():
-        return
-    for line in env_path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
+    CHAVE=valor por linha (ex: SOLARZ_API_TOKEN).
+
+    Procura em api/.env e na raiz do repositório: em dev o arquivo fica junto
+    da API, e na hospedagem (secret file da Render, por exemplo) ele pode cair
+    na raiz do projeto. Variáveis já definidas no ambiente sempre vencem."""
+    api_dir = Path(__file__).resolve().parent.parent
+    for env_path in (api_dir / ".env", api_dir.parent / ".env"):
+        if not env_path.exists():
             continue
-        key, _, value = line.partition("=")
-        os.environ.setdefault(key.strip(), value.strip())
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            # aspas em volta do valor são comuns em .env e não fazem parte dele
+            os.environ.setdefault(key.strip(), value.strip().strip("\"'"))
 
 from app.db import close_db, init_db
 from app.errors import register_error_handlers
