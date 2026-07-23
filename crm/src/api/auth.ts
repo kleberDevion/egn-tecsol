@@ -1,11 +1,13 @@
-import { api, ApiError } from "./client";
+import { api, ApiError, BASE_URL } from "./client";
 import type { ChangePasswordInput, LoginInput, SetupInput, Usuario } from "@/types";
 import type { ApiErrorBody } from "@/types";
 
 async function uploadFoto(file: File): Promise<Usuario> {
   const form = new FormData();
   form.append("foto", file);
-  const response = await fetch("/api/v1/auth/foto", {
+  // Sem o BASE_URL isso ia parar no proprio CRM (site estatico), que
+  // responde o index.html pra qualquer rota — a foto nunca chegava na API.
+  const response = await fetch(`${BASE_URL}/auth/foto`, {
     method: "POST",
     credentials: "include",
     body: form,
