@@ -17,7 +17,7 @@ databases:
 services:
   # ---------------------------------------------------------------- API Flask
   - type: web
-    name: tecsol-api
+    name: egn-api
     runtime: python
     plan: free
     buildCommand: pip install -r api/requirements.txt
@@ -96,7 +96,7 @@ services:
     staticPublishPath: crm/dist
     envVars:
       - key: VITE_API_URL
-        value: https://tecsol-api.onrender.com
+        value: https://egn-api.onrender.com
     routes:
       - type: rewrite
         source: /*
